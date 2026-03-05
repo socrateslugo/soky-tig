@@ -1,0 +1,156 @@
+networks:
+  default:
+    driver: bridge
+    ipam:
+      driver: default
+  nextcloud:
+    driver: bridge
+    internal: true
+    ipam:
+      driver: default
+
+services:
+  influxdb3-core:
+    container_name: influxdb3-core
+    image: influxdb:3-core
+    ports:
+      - 8181:8181
+    command:
+      - influxdb3
+      - serve
+      - --node-id=${INFLUXDB_NODE_ID}
+      - --object-store=file
+      - --data-dir=/var/lib/influxdb3
+    volumes:
+      - influxdb_data:/var/lib/influxdb3
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f -H 'Authorization: Bearer ${INFLUXDB_TOKEN}' http://localhost:8181/health || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+  nodered:
+    container_name: nodered
+    build:
+      context: ./services/nodered/.
+      args:
+        - DOCKERHUB_TAG=latest
+        - EXTRA_PACKAGES=
+    restart: unless-stopped
+    user: "0"
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+    ports:
+      - "1880:1880"
+    volumes:
+      - ./volumes/nodered/data:/data
+      - ./volumes/nodered/ssh:/root/.ssh
+
+  telegraf:
+    container_name: telegraf
+    image: telegraf:latest # o telegraf:1.32 si quieres versión fija
+    depends_on:
+      influxdb3-core:
+        condition: service_healthy
+    environment:
+      - INFLUXDB_HOST=${INFLUXDB_HOST}
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - TELEGRAF_COLLECTION_INTERVAL=${TELEGRAF_COLLECTION_INTERVAL:-10s}
+      - HOSTNAME=telegraf
+    volumes:
+      - /home/soky/IOTstack/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro # sintaxis corta + read-only
+      # O mantén formato largo si prefieres:
+      # - type: bind
+      #   source: /home/soky/IOTstack/telegraf/telegraf.conf
+      #   target: /etc/telegraf/telegraf.conf
+      #   read_only: true
+    restart: unless-stopped
+
+  nodered2:
+    image: nodered/node-red:latest
+    container_name: nodered2
+    restart: unless-stopped
+    ports:
+      - "1881:1880" # Segunda instancia → puerto externo 1881
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - NODE_RED_ENABLE_PROJECTS=true
+      # - NODE_RED_CREDENTIAL_SECRET=otro-secreto-distinto
+    volumes:
+      - ./volumes/nodered2/data:/data
+      - ./volumes/nodered2/ssh:/root/.ssh
+
+  nginx:
+    container_name: nginx
+    image: jc21/nginx-proxy-manager:latest
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      INITIAL_ADMIN_EMAIL: ${NGINX_INITIAL_ADMIN_EMAIL:-admin@example.com}
+      INITIAL_ADMIN_PASSWORD: "${NGINX_INITIAL_ADMIN_PASSWORD:?Define en .env}"
+      DISABLE_IPV6: "true"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "80:80"
+      - "81:81"
+      - "443:443"
+    volumes:
+      - ./volumes/nginx:/data
+      - ./volumes/nginx/letsencrypt:/etc/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    depends_on:
+      - influxdb3-core
+    # Or switch to influxdb3-enterprise as needed
+    restart: unless-stopped
+
+  mosquitto:
+    container_name: mosquitto
+    build:
+      context: ./.templates/mosquitto/.
+      args:
+        - MOSQUITTO_BASE=eclipse-mosquitto:latest
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./volumes/mosquitto/config:/mosquitto/config
+      - ./volumes/mosquitto/data:/mosquitto/data
+      - ./volumes/mosquitto/log:/mosquitto/log
+      - ./volumes/mosquitto/pwfile:/mosquitto/pwfile
+
+  portainer-ce:
+    container_name: portainer-ce
+    image: portainer/portainer-ce
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./volumes/portainer-ce/data:/data
+
+volumes:
+  influxdb_data:
+  influxdb_plugins:
+  grafana_data:
