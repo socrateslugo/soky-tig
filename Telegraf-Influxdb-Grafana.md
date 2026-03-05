@@ -30,65 +30,56 @@ docker compose up -d influxdb3-core
 docker compose exec influxdb3-core influxdb3 create token --admin
 ```
 
-## 3. Update .env file
+## 3. Actualizar el archivo .env
 
-Open [.env](.env) file and paste the token string for "INFLUXDB_TOKEN" enviornment variable.
+Abrir el archivo [.env](.env) y pegar el token generado en la variable "INFLUXDB_TOKEN".
 
-## 4. Start the remaining services of the TIG Stack in Docker
-
-**First make sure Docker application is up and running on your local machine.
-**
+## 4. Iniciar los servicios (docker) faltantes (telegraf y grafana)
 
 ```sh
 docker compose up -d telegraf
 docker compose up -d grafana
 ```
 
-## 5. Verify the Stack
-
-Check Telegraf Logs
+## 5. Verificar los logs
 
 ```sh
+# Verifica los losgs
 docker compose logs telegraf
-```
 
-Check InfluxDB 3 Logs & See Telegraf generated Tables
-
-```sh
+# Verificar los logs de InfluxDB 3 y ver las tablas de telegraf generadas
 docker compose logs influxdb3-core
 docker compose exec influxdb3-core influxdb3 query "SHOW TABLES" --database local_system --token REPLACE_WITH_YOUR_TOKEN_STRING
 ```
 
-## 6. Setup & View Grafana Dashboard
+## 6. Configurar la fuente en Grafana y su Dashboard
 
-- Open localhost:3000 from your browser
-- Login with credentials from .env (default: admin/admin)
-- Add Data Source :
+- Abrir desde su navegador localhost:3000
+- Accesar con las credenciales que utilizamos en el archivo .env (default: admin/admin)
+- Agregar Data Source :
   - Type: InfluxDB
   - Language : SQL
-  - Database: Paste the string value for INFLUXDB_BUCKET enviornment variable from your .env file
-  - URL: http://influxdb3-core:8181 for connecting to InfluxDB 3 Core
-  - URL: http://influxdb3-enterprise:8181 for connecting to InfluxDB 3 Enterprise
-  - Dataabse: Find this inside the .env file (bucker name is same as database name)
-  - Token: Paste the string value for INFLUXDB_TOKEN enviornment variable from your .env file and toggle **Insecure Connection to ON**
-- Add Data Visualization : Dashboards > Create Dashboard - Add Visualization > Select Data Source > InfluxDB_3_Core
-- In the query 'builder' paste and run the following SQL query to see the visualization of the data collected via Telegraf, written to InfluxDB 3.
+  - Database: pegar el nombre de la base de datos de INFLUXDB_BUCKET que esta en el archivo .env
+  - URL: http://influxdb3-core:8181 para conectarse a InfluxDB 3 Core
+  - URL: http://influxdb3-enterprise:8181 para conectarse a InfluxDB 3 Enterprise
+  - Dataabse: Encontrar el nombre dentro de el archivo .env (bucker name es el nombre de la base de datos)
+  - Token: Pegar la cadena de la variable INFLUXDB_TOKEN que esta en el archivo .env y poner a true **Insecure Connection to ON**
+- Agregar Data Visualization : Dashboards > Create Dashboard - Add Visualization > Select Data Source > InfluxDB_3_Core
+- En el query 'builder' pegar y ejecutar el siguiente codigo SQL para ver los datos recolectados via Telegraf, y escritos en InfluxDB 3.
 
 ```sql
 SELECT "cpu", "usage_user", "time" FROM "cpu" WHERE "time" >= $__timeFrom AND "time" <= $__timeTo AND "cpu" = 'cpu0'
 ```
 
-![TIG Stack](https://github.com/InfluxCommunity/TIG-Stack-using-InfluxDB-3-Core/blob/main/Grafana_screenshot.png)
+## 7. Detener los contenedores y eliminar sus datos
 
-## 7. Stopping the TIG Stack & Removing Data
-
-### Stop Services
+### Detener los Servicios (contenedores)
 
 ```sh
 docker compose down
 ```
 
-### Stop and Remove Volumes (Destroys All Data)
+### Detener y eliminar sus volumenes (Destruye todos sus datos)
 
 ```sh
 docker compose down -v
