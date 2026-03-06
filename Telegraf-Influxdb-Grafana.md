@@ -6,9 +6,25 @@ Con estas 3 tecnologias seremos capaces de recolectar, almacenar y analizar info
 2. **InfluxDB 3** (Core o Enterprise) es una base de datos para series de tiempos.
 3. **Grafana** Es una herramienta de visualizacion de datos (Dashboard) que grafica las metricas de las bases de datos como influxdb desde sus tablas.
 
+```mermaid
+flowchart LR
+A1[ESP32 / IoT Devices]
+A2[Servidores Linux]
+A3[APIs / Aplicaciones]
+A1 --> B
+A2 --> B
+A3 --> B
+B[Telegraf]
+B -->|Write API| C[InfluxDB3 Core]
+C --> D[Grafana]
+D --> E[Dashboards]
+D --> F[Alertas]
+F --> G[Email / Telegram / Webhook]
+```
+
 ## Pre-requisitos:
 
-1. Docker instalado en la maquina. y el plugin de dockewr compose [docker-compose.yaml](docker-compose.yml) con este archivo configuraremos e instalaremos los 3 contenedores a utilizar, Telegraf, InfluxDB 3 Core/Enteprise y Grafana.
+1. Docker instalado en la maquina. y el plugin de docker compose [docker-compose.yaml](docker-compose.yml) con este archivo configuraremos e instalaremos los 3 contenedores a utilizar, Telegraf, InfluxDB 3 Core/Enteprise y Grafana.
 2. Git para control de versiones (opcional)
 3. Un editor (vscode)
 
@@ -17,8 +33,8 @@ Con estas 3 tecnologias seremos capaces de recolectar, almacenar y analizar info
 ## 1. Clonar el repositorio
 
 ```sh
-git clone https://github.com/InfluxCommunity/TIG-Stack-using-InfluxDB-3.git
-cd TIG-Stack-using-InfluxDB-3
+git clone https://github.com/socrateslugo/soky-tig
+cd soky-tig
 ```
 
 ## 2. Iniciar InfluxDB 3
